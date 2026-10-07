@@ -1,0 +1,180 @@
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">PASO 01 / INGESTA DE DATOS</span>
+    <h1>Importar comercios<span class="heading-dot">.</span></h1>
+    <p>Revisa tu información antes de enviarla a la base de datos.</p>
+  </div>
+  <a class="button secondary" href="/sample/commerce_07102026.csv" download
+    >↓ Descargar CSV de ejemplo</a
+  >
+</div>
+<div class="metrics">
+  <div class="metric">
+    <span>En commerce</span><strong>{{ overview()?.commerceCount ?? '—' }}</strong
+    ><small>Registros conservados</small>
+  </div>
+  <div class="metric">
+    <span>En cuarentena</span><strong>{{ overview()?.quarantineCount ?? '—' }}</strong
+    ><small>Registros con observaciones</small>
+  </div>
+  <div class="metric">
+    <span>Archivos importados</span><strong>{{ overview()?.importCount ?? '—' }}</strong
+    ><small>Cargas registradas</small>
+  </div>
+</div>
+@if (summaryError()) {
+  <div class="alert error" role="alert">
+    {{ summaryError() }} <button class="text-button" (click)="refreshOverview()">Reintentar</button>
+  </div>
+}
+@if (result(); as imported) {
+  <div class="alert success" role="status">
+    <strong>Importación completada.</strong> Se guardaron {{ imported.insertedCount }} registros de
+    {{ imported.fileName }}. <a routerLink="/procesar">Procesar la información →</a>
+  </div>
+}
+@if (error()) {
+  <div class="alert error" role="alert">{{ error() }}</div>
+}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Cargar archivo</h2>
+      <p>Archivo CSV con el formato commerce_DDMMYYYY.csv</p>
+    </div>
+    <span class="pill neutral">CSV · UTF-8</span>
+  </div>
+  <div
+    class="dropzone"
+    [class.dragging]="dragging()"
+    (dragover)="$event.preventDefault(); dragging.set(true)"
+    (dragleave)="dragging.set(false)"
+    (drop)="onDrop($event)"
+  >
+    <div class="upload-icon" aria-hidden="true">↥</div>
+    <h3>{{ reading() ? 'Leyendo archivo…' : 'Arrastra tu archivo aquí' }}</h3>
+    <p>o selecciona un archivo desde tu equipo</p>
+    <input
+      #fileInput
+      class="visually-hidden"
+      type="file"
+      accept=".csv,text/csv"
+      (change)="onSelected($event)"
+      aria-label="Seleccionar archivo CSV"
+      [disabled]="busy() || reading()"
+    />
+    <button class="button primary" (click)="fileInput.click()" [disabled]="busy() || reading()">
+      Seleccionar archivo <span aria-hidden="true">+</span></button
+    ><small>Máximo 10 MB · Hasta 50 000 registros</small>
+  </div>
+  <div class="format-note">
+    <span aria-hidden="true">ⓘ</span>
+    <p>
+      La fecha de proceso usa <strong>yyyy-MM-dd</strong>. Conserva los seis encabezados del ejemplo
+      y usa coma como separador. Los campos con comas deben ir entre comillas.
+    </p>
+  </div>
+</section>
+@if (file(); as selected) {
+  <section class="panel preview-panel">
+    <div class="panel-heading">
+      <div>
+        <span class="tiny-label">PREVISUALIZACIÓN LOCAL</span>
+        <h2>{{ selected.name }}</h2>
+        <p>
+          {{ selected.size / 1024 | number: '1.1-1' }} KB · {{ rows().length }} registros ·
+          {{ dates() }} fecha(s) de proceso
+        </p>
+      </div>
+      <button class="text-button" (click)="clear()" [disabled]="busy()">Quitar archivo ×</button>
+    </div>
+    @if (warnings()) {
+      <div class="preview-note">
+        {{ warnings() }} registro(s) podrían pasar a cuarentena. Se importarán y las reglas se
+        aplicarán al procesar cada fecha.
+      </div>
+    }
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha de proceso</th>
+            <th>Comercio</th>
+            <th>Documento</th>
+            <th>Correo</th>
+            <th>Teléfono</th>
+            <th>Dirección</th>
+            <th>Revisión</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of preview(); track $index) {
+            <tr>
+              <td class="mono">{{ row.pc_processdate }}</td>
+              <td>{{ row.pc_nomcomred || '—' }}</td>
+              <td class="mono">{{ row.pc_numdoc || '—' }}</td>
+              <td>{{ row.pc_email || '—' }}</td>
+              <td>{{ row.pc_telefono || '—' }}</td>
+              <td>{{ row.pc_direccion || '—' }}</td>
+              <td>
+                <span
+                  class="pill"
+                  [class.warning]="hasBusinessError(row)"
+                  [class.ok]="!hasBusinessError(row)"
+                  >{{ hasBusinessError(row) ? 'Observación' : 'Sin observaciones' }}</span
+                >
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-actions">
+      <span class="muted"
+        >Mostrando {{ preview().length }} de {{ rows().length }} registros. Se enviará el archivo
+        completo.</span
+      ><button class="button primary" (click)="submit()" [disabled]="busy()">
+        {{ busy() ? 'Importando…' : 'Importar ' + rows().length + ' registros' }} →
+      </button>
+    </div>
+  </section>
+}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Últimas importaciones</h2>
+      <p>Trazabilidad de tus cinco cargas más recientes.</p>
+    </div>
+    <span class="tiny-label">ACTIVIDAD</span>
+  </div>
+  @if (overview()?.recentImports?.length) {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Archivo</th>
+            <th>Registros</th>
+            <th>Fecha de importación</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (batch of overview()?.recentImports; track batch.batchId) {
+            <tr>
+              <td><span class="file-tag">CSV</span> {{ batch.fileName }}</td>
+              <td>{{ batch.rowCount }}</td>
+              <td>{{ batch.importedAt + 'Z' | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td><span class="pill ok">Importado</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state compact">
+      <span aria-hidden="true">↥</span>
+      <h3>Tu primera importación empieza aquí</h3>
+      <p>Los archivos que importes aparecerán en este listado.</p>
+    </div>
+  }
+</section>

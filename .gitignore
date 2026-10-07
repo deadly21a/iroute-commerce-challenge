@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+**/TestResults/
+**/playwright-report/
+**/test-results/
+.local/
+.env
+*.user
+*.log
+.DS_Store
